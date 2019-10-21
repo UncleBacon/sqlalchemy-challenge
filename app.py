@@ -16,11 +16,6 @@ Base.prepare(engine, reflect=True)
 # Save references to each table
 measurement = Base.classes.measurement
 station = Base.classes.station
-# Create our session (link) from Python to the DB
-session = Session(engine)
-
-
-
 
 
 #################################################
@@ -56,7 +51,8 @@ def welcome():
 def precipitation():
     """Convert the query results to a Dictionary using `date` as the 
     key and `prcp` as the value"""
-
+    
+    session = Session(engine)
     max_date = max(session.query(measurement.date))[0]
     start_date = datetime.strptime(max_date, '%Y-%m-%d').date()
     year_ago = start_date - dt.timedelta(days=365)
@@ -76,6 +72,8 @@ def precipitation():
 
 def stations():
     """Return a JSON list of stations from the dataset, or a 404 if not."""
+    
+    session = Session(engine)
     stations = session.query(measurement.station, station.name).filter(measurement.station==station.station).group_by('station').order_by(func.count(measurement.date).desc()).all()
     station_dict = pd.DataFrame(stations).set_index('station').to_dict('index')
     session.close()
@@ -86,11 +84,12 @@ def stations():
 def temperature():
     """query for the dates and temperature observations from a year from the last data point. 
     Return a JSON list of Temperature Observations (tobs) for the previous year, or a 404 if not."""
-   
+    
+    session = Session(engine)
     max_date = max(session.query(measurement.date))[0]
     start_date = datetime.strptime(max_date, '%Y-%m-%d').date()
     year_ago = start_date - dt.timedelta(days=365)
-    
+
     stations = session.query(measurement.station, func.count(measurement.date)).group_by('station').order_by(func.count(measurement.date).desc()).all()
     mactive = stations[0][0]
     
@@ -102,23 +101,58 @@ def temperature():
 
 @app.route("/api/v1.0/<start>")
 # * `/api/v1.0/<start>` and `/api/v1.0/<start>/<end>`
-
+    
 
 def start_date():
     """Return a JSON list of the minimum temperature, the average temperature, and the max temperature for a given startrange.
      When given the start only, calculate `TMIN`, `TAVG`, and `TMAX` for all dates greater than and equal to the start date.
      or a 404 if not."""
+
+    session = Session(engine)
+
+    def daily_normals(date):
+        """Daily Normals.    
+    Args:
+        date (str): A date string in the format '%m-%d'
+    Returns:
+        A list of tuples containing the daily normals, tmin, tavg, and tmax
+    """
     
-    # canonicalized = real_name.replace(" ", "").lower()
-    # for character in justice_league_members:
-    #     search_term = character["real_name"].replace(" ", "").lower()
+        sel = [func.min(measurement.tobs), func.avg(measurement.tobs), func.max(measurement.tobs)]
+        return session.query(*sel).filter(func.strftime("%m-%d", measurement.date) == date).all()
+    
+    normals = []
 
-    #     if search_term == canonicalized:
-    #         return jsonify(character)
+    # Set the start and end date of the trip
+    max_date = max(session.query(measurement.date))[0]
+    start_date = datetime.strptime(max_date, '%Y-%m-%d').date()
+    end_date =  start_date - dt.timedelta(days=10)
 
-    # return jsonify({"error": f"Character with real_name {real_name} not found."}), 404
+    # Use the start and end date to create a range of dates
+    dates = session.query(measurement.date).filter(measurement.date<start_date).filter(measurement.date>end_date).all()
 
 
+    # Strip off the year and save a list of %m-%d strings
+
+    datez = [date[0] for date in dates]
+
+    for date in datez:
+        x = datetime.strptime(date,'%Y-%m-%d')
+        normals.append(daily_normals(x.strftime('%m-%d')))
+    
+    tmin = [x[0][0] for x in normals]
+    tavg = [x[0][1] for x in normals]
+    tmax = [x[0][2] for x in normals]
+
+    data = {'date':datez,
+        'tmin':tmin,
+        'tavg':tavg,
+        'tmax':tmax}
+    trip_df = pd.DataFrame(data).set_index('date')
+
+    temp_dict = temp_df.set_index('Date').to_dict('index')
+
+    session.close()
 @app.route("/api/v1.0/<start>/<end>")
 
 def date_range():

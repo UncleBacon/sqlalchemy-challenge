@@ -103,72 +103,104 @@ def temperature():
 # * `/api/v1.0/<start>` and `/api/v1.0/<start>/<end>`
     
 
-def start_date():
-    """Return a JSON list of the minimum temperature, the average temperature, and the max temperature for a given startrange.
+def start_date(start):
+    """Return a JSON list of the minimum temperature, the average temperature, and the max temperature for a given start range.
      When given the start only, calculate `TMIN`, `TAVG`, and `TMAX` for all dates greater than and equal to the start date.
      or a 404 if not."""
+# Set the start and end date of the trip
+    start_date = datetime.strptime(start, '%Y-%m-%d').date()   
+    print(type(start_date))
+    # Use the start and end date to create a range of dates
 
-    session = Session(engine)
+    session = Session(engine) 
+    dates = session.query(measurement.date).filter(measurement.date >= start_date).all()
+    print("passing Dates")
+
 
     def daily_normals(date):
-        """Daily Normals.    
-    Args:
-        date (str): A date string in the format '%m-%d'
-    Returns:
-        A list of tuples containing the daily normals, tmin, tavg, and tmax
-    """
-    
         sel = [func.min(measurement.tobs), func.avg(measurement.tobs), func.max(measurement.tobs)]
         return session.query(*sel).filter(func.strftime("%m-%d", measurement.date) == date).all()
-    
-    normals = []
-
-    # Set the start and end date of the trip
-    max_date = max(session.query(measurement.date))[0]
-    start_date = datetime.strptime(max_date, '%Y-%m-%d').date()
-    end_date =  start_date - dt.timedelta(days=10)
-
-    # Use the start and end date to create a range of dates
-    dates = session.query(measurement.date).filter(measurement.date<start_date).filter(measurement.date>end_date).all()
-
+        session.close()
 
     # Strip off the year and save a list of %m-%d strings
+    
+    print("Collecting Datez")
 
     datez = [date[0] for date in dates]
-
+    
+    
+    normals = [] 
     for date in datez:
         x = datetime.strptime(date,'%Y-%m-%d')
         normals.append(daily_normals(x.strftime('%m-%d')))
-    
+
     tmin = [x[0][0] for x in normals]
     tavg = [x[0][1] for x in normals]
     tmax = [x[0][2] for x in normals]
-
+    print("passing min/avg/max to lists")
+    
     data = {'date':datez,
         'tmin':tmin,
         'tavg':tavg,
         'tmax':tmax}
-    trip_df = pd.DataFrame(data).set_index('date')
-
-    temp_dict = temp_df.set_index('Date').to_dict('index')
-
-    session.close()
-@app.route("/api/v1.0/<start>/<end>")
-
-def date_range():
-    """Return a JSON list of the minimum temperature, the average temperature, and the max temperature for a given start or start-end range.
-     When given the start and the end date, calculate the `TMIN`, `TAVG`, and `TMAX` for dates between the start and end date inclusive., or a 404 if not."""
+    temp_df = pd.DataFrame(data).set_index('date').groupby('date').agg('mean')
     
 
+    temp_dict = temp_df.to_dict('index')
 
-    # canonicalized = real_name.replace(" ", "").lower()
-    # for character in justice_league_members:
-    #     search_term = character["real_name"].replace(" ", "").lower()
+    return jsonify(temp_dict), 404
+    
+@app.route("/api/v1.0/<start>/<end>")
 
-    #     if search_term == canonicalized:
-    #         return jsonify(character)
+def start__end_date(start,end):
+    """Return a JSON list of the minimum temperature, the average temperature, and the max temperature for a given start range.
+     When given the start only, calculate `TMIN`, `TAVG`, and `TMAX` for all dates greater than and equal to the start date.
+     or a 404 if not."""
+# Set the start and end date of the trip
+    start_date = datetime.strptime(start, '%Y-%m-%d').date()   
+    end_date = datetime.strptime(end, '%Y-%m-%d').date()
+    # Use the start and end date to create a range of dates
+    print('Start Date:', start_date)
+    print('End Date:', end_date)
 
-    # return jsonify({"error": f"Character with real_name {real_name} not found."}), 404
+    session = Session(engine) 
+    dates = session.query(measurement.date).filter(measurement.date >= start_date).filter(measurement.date <= end_date).all()
+    print("passing Dates")
+
+
+    def daily_normals(date):
+        sel = [func.min(measurement.tobs), func.avg(measurement.tobs), func.max(measurement.tobs)]
+        return session.query(*sel).filter(func.strftime("%m-%d", measurement.date) == date).all()
+        session.close()
+
+    # Strip off the year and save a list of %m-%d strings
+    
+    print("Collecting Datez")
+
+    datez = [date[0] for date in dates]
+    
+    
+    normals = [] 
+    for date in datez:
+        x = datetime.strptime(date,'%Y-%m-%d')
+        normals.append(daily_normals(x.strftime('%m-%d')))
+
+    tmin = [x[0][0] for x in normals]
+    tavg = [x[0][1] for x in normals]
+    tmax = [x[0][2] for x in normals]
+    print("passing min/avg/max to lists")
+    
+    data = {'date':datez,
+        'tmin':tmin,
+        'tavg':tavg,
+        'tmax':tmax}
+    temp_df_SE = pd.DataFrame(data).set_index('date').groupby('date').agg('mean')
+    
+
+    temp_dict_SE = temp_df_SE.to_dict('index')
+
+    return jsonify(temp_dict_SE), 404
+
 if __name__ == "__main__":
     app.run(debug=True)
 

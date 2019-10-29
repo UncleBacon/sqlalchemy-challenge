@@ -8,8 +8,8 @@ from sqlalchemy.orm import Session
 from sqlalchemy import create_engine, func, inspect
 
 #Access DB
-path = r"C:\Users\bastaw1\PycharmProjects\GitHub\Homework\sqlalchemy-challenge\Instructions\Resources\hawaii.sqlite"
-engine = create_engine("sqlite:///"+path)
+engine = create_engine("sqlite:///Resources/hawaii.sqlite")
+Base = automap_base()
 Base = automap_base()
 # reflect the tables
 Base.prepare(engine, reflect=True)

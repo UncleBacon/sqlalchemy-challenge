@@ -128,12 +128,12 @@ def start_date(start):
     for date in datez:
         x = datetime.strptime(date,'%Y-%m-%d')
         normals.append(daily_normals(x.strftime('%m-%d')))
+    
+    items=[]
+    for i in normals:
+        items.append(i[0])
 
-    df3 = pd.DataFrame([datez,normals])
-    df4 = df3.to_dict()
-    temp_date = [{df4[i][0]:{'tmin':df4[i][1][0][0],'tavg':round(df4[i][1][0][1]),'tmax':df4[i][1][0][2]}} for i in df4]
-
-    return(jsonify(temp_date)),404
+    return jsonify(items),404
 
     
 @app.route("/api/v1.0/<start>/<end>")
@@ -171,11 +171,11 @@ def start__end_date(start,end):
         x = datetime.strptime(date,'%Y-%m-%d')
         normals.append(daily_normals(x.strftime('%m-%d')))
 
-    df3 = pd.DataFrame([datez,normals])
-    df4 = df3.to_dict()
-    temp_dates = [{df4[i][0]:{'tmin':df4[i][1][0][0],'tavg':round(df4[i][1][0][1]),'tmax':df4[i][1][0][2]}} for i in df4]
+    items=[]
+    for i in normals:
+        items.append(i[0])
 
-    return(jsonify(temp_dates)),404
+    return jsonify(items),404
 
 if __name__ == "__main__":
     app.run(debug=True)

@@ -73,9 +73,9 @@ def stations():
     session = Session(engine)
     stations = session.query(measurement.station, station.name).filter(measurement.station==station.station).group_by('station').order_by(func.count(measurement.date).desc()).all()
     session.close()
-    stationz = {}
+    stationz = []
     for i in stations:
-        stationz[i[0]]= i[1]
+        stationz.append(i)
 
     return (jsonify(stationz))
     
@@ -95,9 +95,9 @@ def temperature():
     session.close()
 
 
-    temp_hist = {}
+    temp_hist = []
     for i in temp_LastYear:
-        temp_hist[i[0]] = i[1]
+        temp_hist.append(i[1])
         
     return(jsonify(temp_hist))
 

@@ -59,8 +59,9 @@ def precipitation():
     year_ago = start_date - dt.timedelta(days=365)
     data = session.query(measurement.date,measurement.prcp).filter(measurement.prcp!='None').filter(measurement.date > year_ago).filter(measurement.date < start_date).all()
     session.close()
-
-    prcp = [{i[0]:i[1]} for i in data]
+    prcp={}
+    for i in data:
+        prcp[i[0]] = i[1]
     return (jsonify(prcp))
 
 
@@ -72,8 +73,10 @@ def stations():
     session = Session(engine)
     stations = session.query(measurement.station, station.name).filter(measurement.station==station.station).group_by('station').order_by(func.count(measurement.date).desc()).all()
     session.close()
+    stationz = {}
+    for i in stations:
+        stationz[i[0]]= i[1]
 
-    stationz = [{i[0]:i[1]} for i in stations]
     return (jsonify(stationz))
     
 
@@ -91,7 +94,11 @@ def temperature():
     temp_LastYear = session.query(measurement.date,measurement.tobs).filter(measurement.station == mactive).filter(measurement.date>year_ago).filter(measurement.date<max_date).all()
     session.close()
 
-    temp_hist = [{i[0]:i[1]} for i in temp_LastYear]
+
+    temp_hist = {}
+    for i in temp_LastYear:
+        temp_hist[i[0]] = i[1]
+        
     return(jsonify(temp_hist))
 
 @app.route("/api/v1.0/<start>")
@@ -127,13 +134,10 @@ def start_date(start):
     normals = [] 
     for date in datez:
         x = datetime.strptime(date,'%Y-%m-%d')
-        normals.append(daily_normals(x.strftime('%m-%d')))
+        normals.append(daily_normals(x.strftime('%m-%d'))[0])
     
-    items=[]
-    for i in normals:
-        items.append(i[0])
 
-    return jsonify(items),404
+    return jsonify(normals),404
 
     
 @app.route("/api/v1.0/<start>/<end>")
